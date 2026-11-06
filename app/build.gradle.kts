@@ -4,11 +4,9 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.serialization")
 }
-
 android {
     namespace = "com.example.subvox"
     compileSdk = 34
-
     defaultConfig {
         applicationId = "com.example.subvox"
         minSdk = 26

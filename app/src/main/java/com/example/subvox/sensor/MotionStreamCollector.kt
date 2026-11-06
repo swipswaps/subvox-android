@@ -11,8 +11,12 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
-data class MotionFrame(val timestamp: Long, val acceleration: FloatArray,
-                       val rotationRate: FloatArray, val rotationVector: FloatArray)
+data class MotionFrame(
+    val timestamp: Long,
+    val acceleration: FloatArray,
+    val rotationRate: FloatArray,
+    val rotationVector: FloatArray
+)
 
 class MotionStreamCollector(context: Context) : SensorEventListener {
     private val sm = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
@@ -23,8 +27,10 @@ class MotionStreamCollector(context: Context) : SensorEventListener {
     private val _flow = MutableSharedFlow<MotionFrame>(0, 1024, BufferOverflow.DROP_OLDEST)
     val motionFlow: SharedFlow<MotionFrame> = _flow.asSharedFlow()
 
-    private var a = FloatArray(3); private var g = FloatArray(3)
-    private var r = FloatArray(4); private var last = 0L
+    private var a = FloatArray(3)
+    private var g = FloatArray(3)
+    private var r = FloatArray(4)
+    private var last = 0L
 
     fun startListening() {
         accel?.let { sm.registerListener(this, it, 10_000) }

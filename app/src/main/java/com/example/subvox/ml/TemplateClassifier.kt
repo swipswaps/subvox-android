@@ -17,8 +17,10 @@ class TemplateClassifier {
     }
     fun classify(u: List<FloatArray>, ts: List<TemplateRecord>): Pair<String, Float> {
         val n = normalize(u); var label = "UNKNOWN"; var best = Float.MAX_VALUE
-        for (t in ts) { val d = DynamicTimeWarping.computeDistance(n, t.features.map { it.toFloatArray() })
-            if (d < best) { best = d; label = t.label } }
+        for (t in ts) {
+            val d = DynamicTimeWarping.computeDistance(n, t.features.map { it.toFloatArray() })
+            if (d < best) { best = d; label = t.label }
+        }
         return label to best
     }
 }

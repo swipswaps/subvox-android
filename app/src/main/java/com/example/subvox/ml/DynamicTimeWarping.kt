@@ -1,6 +1,8 @@
 
 package com.example.subvox.ml
-import kotlin.math.max; import kotlin.math.min; import kotlin.math.sqrt
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.sqrt
 
 object DynamicTimeWarping {
     fun computeDistance(a: List<FloatArray>, b: List<FloatArray>, bandFraction: Float = 0.15f): Float {
@@ -16,6 +18,8 @@ object DynamicTimeWarping {
         return d[n][m]
     }
     private fun euclid(x: FloatArray, y: FloatArray): Float {
-        var s = 0f; for (i in 0 until min(x.size, y.size)) { val d = x[i] - y[i]; s += d * d }; return sqrt(s)
+        var s = 0f
+        for (i in 0 until min(x.size, y.size)) { val d = x[i] - y[i]; s += d * d }
+        return sqrt(s)
     }
 }
