@@ -1,17 +1,24 @@
 
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent"
-    android:orientation="vertical" android:padding="24dp" android:gravity="center_horizontal">
-    <EditText android:id="@+id/inputLabel" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:hint="Vocabulary token (e.g. hello)" />
-    <Button android:id="@+id/recordButton" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:layout_marginTop="16dp"
-        android:text="Record Reference" />
-    <Button android:id="@+id/classifyButton" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:layout_marginTop="16dp"
-        android:text="Run Classification" />
-    <TextView android:id="@+id/statusText" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:layout_marginTop="24dp"
-        android:text="Ready" android:textSize="16sp" />
-</LinearLayout>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+    <LinearLayout
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="24dp" android:gravity="center_horizontal">
+        <EditText android:id="@+id/inputLabel" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:hint="Vocabulary token (e.g. hello)" />
+        <Button android:id="@+id/recordButton" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="16dp"
+            android:text="Record Reference" />
+        <Button android:id="@+id/classifyButton" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="16dp"
+            android:text="Run Classification" />
+        <Button android:id="@+id/evaluateButton" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="16dp"
+            android:text="Evaluate (LOO + 500 permutations)" />
+        <TextView android:id="@+id/statusText" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="24dp"
+            android:text="Ready" android:textSize="14sp"
+            android:fontFamily="monospace" />
+    </LinearLayout>
+</ScrollView>

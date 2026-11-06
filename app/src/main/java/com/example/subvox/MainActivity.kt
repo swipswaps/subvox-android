@@ -8,10 +8,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.subvox.data.DatasetRepository
 import com.example.subvox.data.TemplateRecord
+import com.example.subvox.ml.Evaluation
 import com.example.subvox.ml.TemplateClassifier
 import com.example.subvox.sensor.MotionStreamCollector
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
     private lateinit var c: MotionStreamCollector
@@ -25,17 +28,21 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         c = MotionStreamCollector(this)
         r = DatasetRepository(this)
+
         val st  = findViewById<TextView>(R.id.statusText)
         val inp = findViewById<EditText>(R.id.inputLabel)
         val rec = findViewById<Button>(R.id.recordButton)
         val dec = findViewById<Button>(R.id.classifyButton)
+        val eva = findViewById<Button>(R.id.evaluateButton)
+
         lifecycleScope.launch {
             c.motionFlow.collect { f ->
                 if (cap) buf.add(floatArrayOf(*f.acceleration, *f.rotationRate, *f.rotationVector))
             }
         }
+
         rec.setOnClickListener {
-            if (!cap) { buf.clear(); cap = true; rec.text = "Stop & Save"; st.text = "Recording…" }
+            if (!cap) { buf.clear(); cap = true; rec.text = "Stop & Save"; st.text = "Recording..." }
             else {
                 cap = false; rec.text = "Record Reference"
                 val l = inp.text.toString().ifEmpty { "unnamed" }
@@ -46,16 +53,31 @@ class MainActivity : AppCompatActivity() {
                 st.text = "Saved ${n.size} frames for '$l'"
             }
         }
+
         dec.setOnClickListener {
-            if (!cap) { buf.clear(); cap = true; dec.text = "Stop & Classify"; st.text = "Listening…" }
+            if (!cap) { buf.clear(); cap = true; dec.text = "Stop & Classify"; st.text = "Listening..." }
             else {
                 cap = false; dec.text = "Run Classification"
                 val ts = r.loadTemplates()
                 if (ts.isEmpty()) st.text = "No templates recorded."
                 else {
-                    val (l, d) = clf.classify(buf, ts)
-                    st.text = "→ $l (DTW = %.2f)".format(d)
+                    val res = clf.classify(buf, ts)
+                    st.text = if (res.accepted)
+                        "-> ${res.label}  d=%.2f  margin=%.2f".format(res.distance, res.margin)
+                    else
+                        "rejected  best=${res.label}  d=%.2f  margin=%.2f".format(res.distance, res.margin)
                 }
+            }
+        }
+
+        eva.setOnClickListener {
+            val ts = r.loadTemplates()
+            if (ts.size < 4) { st.text = "Need >= 4 takes. Record more first."; return@setOnClickListener }
+            if (ts.map { it.label }.distinct().size < 2) { st.text = "Need >= 2 distinct labels."; return@setOnClickListener }
+            st.text = "Evaluating LOO + ${Evaluation.DEFAULT_PERMUTATIONS} permutations..."
+            lifecycleScope.launch(Dispatchers.Default) {
+                val res = Evaluation.run(ts)
+                withContext(Dispatchers.Main) { st.text = res.pretty() }
             }
         }
     }

@@ -2,15 +2,25 @@
 <html lang="en"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Subvox Android</title>
-<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:4rem auto;padding:0 1.5rem;line-height:1.6}
-code{background:#f4f4f4;padding:.2em .4em;border-radius:4px}</style></head><body>
+<style>body{font-family:system-ui,sans-serif;max-width:760px;margin:4rem auto;padding:0 1.5rem;line-height:1.6}
+code,pre{background:#f4f4f4;border-radius:4px}code{padding:.2em .4em}pre{padding:1em;overflow:auto}</style>
+</head><body>
 <h1>Subvox Android</h1>
-<p>A native Android port of <a href="https://github.com/joeblau/subvox">joeblau/subvox</a> — kinematic template matching for silently mouthed words using DTW and Android SensorManager.</p>
-<h2>Build</h2><pre><code>git clone https://github.com/OWNER/subvox-android.git
+<p>A native Android port of <a href="https://github.com/joeblau/subvox">joeblau/subvox</a>:
+1-NN dynamic time warping over 10 kinematic channels, with a leave-one-out
+accuracy and a 500&times; label-permutation p-value, all on-device.</p>
+<h2>Build</h2>
+<pre><code>git clone https://github.com/OWNER/subvox-android.git
 cd subvox-android
-./gradlew assembleDebug</code></pre>
+./gradlew --no-daemon assembleDebug</code></pre>
 <p>APK: <code>app/build/outputs/apk/debug/app-debug.apk</code></p>
-<h2>References</h2><ul>
-<li>Sakoe &amp; Chiba (1978), DOI: 10.1109/TASSP.1978.1163055</li>
+<h2>Install</h2>
+<pre><code>adb install -r app/build/outputs/apk/debug/app-debug.apk</code></pre>
+<p>Or download the <code>subvox-debug-apk</code> artifact from the Actions tab.</p>
+<h2>References</h2>
+<ul>
+<li>Sakoe &amp; Chiba (1978), IEEE Trans. ASSP 26(1), 43&ndash;49, DOI: 10.1109/TASSP.1978.1163055</li>
+<li>Phipson &amp; Smyth (2010), SAGMB 9(1), DOI: 10.2202/1544-6115.1585</li>
 <li><a href="https://developer.android.com/guide/topics/sensors/sensors_motion">Android SensorManager</a></li>
-</ul></body></html>
+</ul>
+</body></html>
