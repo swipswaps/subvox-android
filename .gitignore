@@ -10,3 +10,6 @@
 .externalNativeBuild
 .cxx
 /*.__quarantined__/
+dist/
+*.apk
+*.aab
