@@ -28,8 +28,8 @@ Implemented:
   (DOI:10.2202/1544-6115.1585), confusion matrix. DTW matrix computed once; exact
   because DTW distance depends only on feature sequences, not labels.
 - CI: android-build.yml builds a debug APK on every push; deploy-pages.yml deploys
-  index.html via actions/configure-pages + actions/upload-pages-artifact +
-  actions/deploy-pages (build_type=workflow).
+  index.html via actions/configure-pages@v5 + actions/upload-pages-artifact@v3 +
+  actions/deploy-pages@v4 (build_type=workflow).
 
 Known limitations:
 - Energy-trigger segmentation is not ported; capture is manual.
@@ -44,12 +44,16 @@ The repo's Pages setting is build_type=workflow. The workflow stages index.html
 into _site/ and deploys it. To check status:
 
   gh api repos/{owner}/{repo}/pages
-  gh api repos/{owner}/{repo}/pages/builds/latest --jq '{status, error: .error.message}'
-  gh run list --workflow=deploy-pages --limit=1
+  gh run list --workflow=deploy-pages --limit=3
+  gh run view --log-failed
 
 If the Pages build reports errored, trigger a rebuild:
 
   gh api -X POST repos/{owner}/{repo}/pages/builds
+
+Note: POST /pages/builds returns 403 "repository does not have a GitHub Pages site"
+when the site has not yet been created under build_type=workflow. Wait for the
+deploy-pages workflow to complete first.
 
 5. HOW TO USE
 Prereqs: Android Studio Jellyfish+, JDK 17, physical device API 26+.
@@ -66,3 +70,4 @@ In-app:  type token, Record Reference, articulate, Stop & Save. Repeat >=4 takes
 - Android Head Tracker HID:
   https://source.android.com/docs/core/interaction/sensors/head-tracker-hid-protocol
 - TYPE_HEAD_TRACKER: https://developer.android.com/reference/android/hardware/Sensor#TYPE_HEAD_TRACKER
+- actions/deploy-pages permissions: pages: write + id-token: write minimum.
