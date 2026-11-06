@@ -11,10 +11,19 @@ data class ClassificationResult(
     val accepted: Boolean
 )
 
+/**
+ * z-scored 1-NN template matcher with margin rejection. Per-sequence z-scoring
+ * removes amplitude variation before DTW, matching the upstream preprocessing
+ * step. The acceptance gate mirrors upstream maxDistance/minConfidence.
+ */
 class TemplateClassifier(
     val maxDistance: Float = Float.MAX_VALUE,
     val minConfidence: Float = 0f
 ) {
+    /**
+     * Standardize each channel of a sequence to zero mean and unit variance.
+     * If a channel is constant, std is replaced by 1 to avoid division by zero.
+     */
     fun normalize(frames: List<FloatArray>): List<FloatArray> {
         if (frames.isEmpty()) return frames
         val dims = frames[0].size
@@ -27,6 +36,10 @@ class TemplateClassifier(
         return frames.map { f -> FloatArray(dims) { k -> (f[k] - mean[k]) / std[k] } }
     }
 
+    /**
+     * 1-NN search over stored templates. The runner-up distance is tracked so
+     * the margin (second - best)/second can reject ambiguous matches.
+     */
     fun classify(unknown: List<FloatArray>, ts: List<TemplateRecord>): ClassificationResult {
         val n = normalize(unknown)
         var best = Float.MAX_VALUE

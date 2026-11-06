@@ -1,7 +1,14 @@
 
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  HIGH_SAMPLING_RATE_SENSORS is required above 200 Hz for SensorEventListener;
+  at 100 Hz it is declared for forward compatibility.
+  BLUETOOTH_CONNECT is a runtime permission on API 31+ and is required before the
+  head-tracker HID sensor is exposed.
+-->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.HIGH_SAMPLING_RATE_SENSORS" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"

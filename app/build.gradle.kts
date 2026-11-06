@@ -1,4 +1,7 @@
 
+// Android application module. compileSdk 34 is required because TYPE_HEAD_TRACKER
+// was added in API level 33 [reference:1]. The Kotlin serialization plugin provides
+// the generated serializer for @Serializable data classes.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")

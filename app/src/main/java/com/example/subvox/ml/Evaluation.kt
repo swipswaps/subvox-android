@@ -19,52 +19,54 @@ data class EvaluationResult(
     val nullSd: Double,
     val confusion: List<ConfusionCell>
 ) {
+    /** Human-readable summary; the p-value is the permutation estimate, not 1/k. */
     fun pretty(): String = buildString {
         append("N = %d takes, k = %d classes\n".format(n, classes.size))
         append("LOO accuracy    = %.3f\n".format(looAccuracy))
         append("chance majority = %.3f\n".format(chanceMajority))
         append("chance uniform  = %.3f\n".format(chanceUniform))
-        append("null (shuffled) = %.3f +/- %.3f  over %d permutations\n".format(nullMean, nullSd, permutations))
-        append("p-value         = %.4f  [%s]\n".format(pValue, if (pValue < 0.05) "p < 0.05, above chance" else "n.s."))
+        append("null (shuffled) = %.3f +/- %.3f over %d permutations\n".format(nullMean, nullSd, permutations))
+        append("p-value         = %.4f [%s]\n".format(pValue, if (pValue < 0.05) "p < 0.05, above chance" else "n.s."))
         append("confusion (actual -> predicted):\n")
-        for (c in confusion) append("  %-10s -> %-10s  %d\n".format(c.actual, c.predicted, c.count))
+        for (c in confusion) append("  %-10s -> %-10s %d\n".format(c.actual, c.predicted, c.count))
     }
 }
 
+/**
+ * Leave-one-out classification plus a Monte Carlo label-permutation test.
+ *
+ * The permutation p-value uses the (1 + ge) / (1 + B) correction so it is never
+ * zero from a finite number of shuffles and remains exact at level alpha
+ * [reference:8].
+ *
+ * The N x N DTW matrix is computed once. This is exact: DTW distance depends
+ * only on the two feature sequences, never on labels. Shuffling labels changes
+ * only the argmin lookup, not the distances, so recomputing DTW inside every
+ * permutation would be redundant.
+ */
 object Evaluation {
     const val DEFAULT_PERMUTATIONS = 500
 
-    /**
-     * Symmetric N x N DTW distance matrix, computed once.
-     *
-     * DTW distance is a function of the feature sequences only; labels play no
-     * part in it. A label permutation therefore relabels the argmin search but
-     * leaves every entry of this matrix unchanged. Precomputing it collapses
-     * 500 x N^2 DTW evaluations into N(N-1)/2 DTW evaluations plus 500 x N^2
-     * argmin lookups, which is what makes B = 500 viable on a handset.
-     */
+    /** Symmetric N x N DTW distance matrix over stored takes. */
     fun distanceMatrix(records: List<TemplateRecord>): Array<FloatArray> {
         val n = records.size
         val m = Array(n) { FloatArray(n) }
-        for (i in 0 until n) {
-            for (j in i + 1 until n) {
-                val d = DynamicTimeWarping.computeDistance(
-                    records[i].features.map { it.toFloatArray() },
-                    records[j].features.map { it.toFloatArray() }
-                )
-                m[i][j] = d
-                m[j][i] = d
-            }
+        for (i in 0 until n) for (j in i + 1 until n) {
+            val d = DynamicTimeWarping.computeDistance(
+                records[i].features.map { it.toFloatArray() },
+                records[j].features.map { it.toFloatArray() }
+            )
+            m[i][j] = d; m[j][i] = d
         }
         return m
     }
 
+    /** Leave-one-out 1-NN predictions using a precomputed distance matrix. */
     fun leaveOneOutPredictions(dist: Array<FloatArray>, labels: IntArray): IntArray {
         val n = labels.size
         val pred = IntArray(n) { -1 }
         for (i in 0 until n) {
-            var best = Float.MAX_VALUE
-            var bestLabel = -1
+            var best = Float.MAX_VALUE; var bestLabel = -1
             for (j in 0 until n) {
                 if (i == j) continue
                 if (dist[i][j] < best) { best = dist[i][j]; bestLabel = labels[j] }
@@ -81,11 +83,11 @@ object Evaluation {
         return ok.toDouble() / truth.size
     }
 
-    fun run(
-        records: List<TemplateRecord>,
-        permutations: Int = DEFAULT_PERMUTATIONS,
-        seed: Long = 0xC0FFEEL
-    ): EvaluationResult {
+    /**
+     * Full evaluation: LOO accuracy, majority/uniform baselines, B label shuffles,
+     * and the +1 corrected permutation p-value [reference:9].
+     */
+    fun run(records: List<TemplateRecord>, permutations: Int = DEFAULT_PERMUTATIONS, seed: Long = 0xC0FFEEL): EvaluationResult {
         require(records.size >= 4) { "need at least 4 takes" }
         val names = records.map { it.label }.distinct().sorted()
         require(names.size >= 2) { "need at least 2 distinct labels" }
@@ -115,12 +117,8 @@ object Evaluation {
             nullAcc[b] = accB
             if (accB >= accObs - 1e-12) ge++
         }
-
         val mean = nullAcc.average()
         val sd = sqrt(nullAcc.sumOf { (it - mean) * (it - mean) } / permutations)
-
-        // Monte Carlo permutation p-value with the +1 correction so that p is
-        // never 0 and the test stays exact at level alpha.
         val p = (1.0 + ge) / (1.0 + permutations)
 
         val confusion = ArrayList<ConfusionCell>()
@@ -131,16 +129,10 @@ object Evaluation {
         }
 
         return EvaluationResult(
-            n = records.size,
-            classes = names,
-            looAccuracy = accObs,
-            chanceMajority = chanceMajority,
-            chanceUniform = chanceUniform,
-            permutations = permutations,
-            pValue = p,
-            nullMean = mean,
-            nullSd = sd,
-            confusion = confusion
+            n = records.size, classes = names, looAccuracy = accObs,
+            chanceMajority = chanceMajority, chanceUniform = chanceUniform,
+            permutations = permutations, pValue = p, nullMean = mean,
+            nullSd = sd, confusion = confusion
         )
     }
 }

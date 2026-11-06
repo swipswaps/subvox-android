@@ -18,7 +18,6 @@
             android:text="Evaluate (LOO + 500 permutations)" />
         <TextView android:id="@+id/statusText" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="24dp"
-            android:text="Ready" android:textSize="14sp"
-            android:fontFamily="monospace" />
+            android:text="Ready" android:textSize="14sp" android:fontFamily="monospace" />
     </LinearLayout>
 </ScrollView>
