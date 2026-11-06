@@ -13,34 +13,22 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-
-      # AGP 8.x requires JDK 17.
-      # https://github.com/obytes/react-native-template-obytes/issues/372
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
-      # Guarantees ANDROID_HOME on any runner.
-      # https://github.com/android-actions/setup-android
-      # https://github.com/tuist/tuist/pull/11062
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
           packages: 'platforms;android-34 build-tools;34.0.0'
           accept-android-sdk-licenses: true
-
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-
       - name: Make wrapper executable
         run: chmod +x ./gradlew
-
-      # --stacktrace so the next failure is auditable.
       - name: Assemble debug APK
         run: ./gradlew --no-daemon --stacktrace assembleDebug
-
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
