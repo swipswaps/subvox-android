@@ -1,6 +1,4 @@
 
-// Repository declarations for plugin and dependency resolution.
-// FAIL_ON_PROJECT_REPOS prevents accidental repository declarations in modules.
 pluginManagement {
     repositories { google(); mavenCentral(); gradlePluginPortal() }
 }

@@ -28,10 +28,6 @@ class MainActivity : AppCompatActivity() {
     private val buf = mutableListOf<FloatArray>()
     private var cap = false
 
-    /**
-     * BLUETOOTH_CONNECT is a runtime permission on API 31+; without it the
-     * head-tracker HID sensor can remain hidden [reference:10].
-     */
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
         setContentView(R.layout.activity_main)
@@ -40,25 +36,17 @@ class MainActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= 31 &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
             != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(
-                this, arrayOf(Manifest.permission.BLUETOOTH_CONNECT), 101
-            )
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.BLUETOOTH_CONNECT), 101)
         }
-
         val st  = findViewById<TextView>(R.id.statusText)
         val inp = findViewById<EditText>(R.id.inputLabel)
         val rec = findViewById<Button>(R.id.recordButton)
         val dec = findViewById<Button>(R.id.classifyButton)
         val eva = findViewById<Button>(R.id.evaluateButton)
-
-        st.text = if (c.hasHeadTracker) "Head tracker HID active" else "Phone IMU (no head tracker HID)"
-
+        st.text = if (c.hasHeadTracker) "Head tracker HID active" else "Phone IMU"
         lifecycleScope.launch {
-            c.motionFlow.collect { f ->
-                if (cap) buf.add(floatArrayOf(*f.acceleration, *f.rotationRate, *f.rotationVector))
-            }
+            c.motionFlow.collect { f -> if (cap) buf.add(floatArrayOf(*f.acceleration, *f.rotationRate, *f.rotationVector)) }
         }
-
         rec.setOnClickListener {
             if (!cap) { buf.clear(); cap = true; rec.text = "Stop & Save"; st.text = "Recording..." }
             else {
@@ -71,7 +59,6 @@ class MainActivity : AppCompatActivity() {
                 st.text = "Saved ${n.size} frames for '$l'"
             }
         }
-
         dec.setOnClickListener {
             if (!cap) { buf.clear(); cap = true; dec.text = "Stop & Classify"; st.text = "Listening..." }
             else {
@@ -80,14 +67,11 @@ class MainActivity : AppCompatActivity() {
                 if (ts.isEmpty()) st.text = "No templates recorded."
                 else {
                     val res = clf.classify(buf, ts)
-                    st.text = if (res.accepted)
-                        "-> ${res.label} d=%.2f margin=%.2f".format(res.distance, res.margin)
-                    else
-                        "rejected best=${res.label} d=%.2f margin=%.2f".format(res.distance, res.margin)
+                    st.text = if (res.accepted) "-> ${res.label} d=%.2f margin=%.2f".format(res.distance, res.margin)
+                             else "rejected best=${res.label} d=%.2f margin=%.2f".format(res.distance, res.margin)
                 }
             }
         }
-
         eva.setOnClickListener {
             val ts = r.loadTemplates()
             if (ts.size < 4) { st.text = "Need >= 4 takes."; return@setOnClickListener }
