@@ -1,31 +1,42 @@
+
 SUBVOX ANDROID PORT
 
-Upstream: https://github.com/joeblau/subvox
+1. HOW WE GOT HERE
+Upstream (https://github.com/joeblau/subvox) is a macOS app that reads AirPods Pro
+telemetry through CoreMotion. Android has no CMHeadphoneMotionManager. The port
+substitutes SensorManager: TYPE_LINEAR_ACCELERATION, TYPE_GYROSCOPE, and
+TYPE_ROTATION_VECTOR. Those read the phone IMU.
 
-A native Android port of Subvox: 1-NN dynamic time warping over 10 kinematic
-channels (accelerometer, gyroscope, rotation vector), with leave-one-out
-accuracy and a 500x label-permutation p-value computed on-device.
+2. WHERE WE ARE
+Implemented:
+- Sensor acquisition with TYPE_HEAD_TRACKER fallback.
+- DTW with Sakoe-Chiba band (DOI: 10.1109/TASSP.1978.1163055).
+- JSON persistence using filesDir (Android internal storage best practice).
+- Evaluation.kt: LOO accuracy, majority baseline, 500x label-permutation null,
+  Monte Carlo p-value with (1+ge)/(1+B) correction (DOI: 10.2202/1544-6115.1585).
+- GitHub Actions: android-build.yml builds the APK; deploy-pages.yml deploys
+  the site via peaceiris.
 
-PIPELINE
-- android-build.yml : JDK 17 + Android SDK 34 -> assembleDebug -> uploads `subvox-debug-apk`
-- deploy-pages.yml  : peaceiris/actions-gh-pages -> gh-pages branch -> legacy Pages builder
+Known limitations:
+- The SM-J737T (Android 9, SDK 28) cannot use TYPE_HEAD_TRACKER (requires API 33).
+  Head-mounted telemetry requires Android 13+ and a compatible headset.
+- Energy-trigger segmentation is not ported; capture is manual.
 
-HARDWARE
-Reads the phone IMU by default. Android 13+ Head Tracker HID (Sony WH/WF-1000XM5,
-XM6, ULT WEAR) exposes earbud IMU as Sensor.TYPE_HEAD_TRACKER. No vendor SDK required.
+3. HOW TO USE
+Prereqs: Android Studio Jellyfish+, JDK 17, physical device API 26+.
+Build locally: ./gradlew --no-daemon assembleDebug
+Install: adb install -r app/build/outputs/apk/debug/app-debug.apk
+In-app: type a word, Record Reference, articulate, Stop & Save.
+Repeat >=4 takes across >=2 distinct words.
+Tap Evaluate (LOO + 500 permutations). Read p against majority chance.
 
-BUILD & INSTALL
-1. Download the `subvox-debug-apk` artifact from the android-build Actions run.
-2. Install on a connected device:
-   $ adb install -r app-debug.apk
-3. Launch the app, grant Bluetooth permissions, and use the Record / Classify / Evaluate buttons.
+Automation: scripts/automate_recording.py drives the app via ADB and
+uiautomator resource-ids, records takes, and generates dist/audit/audit.md.
 
-EVALUATION
-Record >= 4 takes across >= 2 labels before tapping Evaluate. The permutation
-p-value uses the Monte Carlo (1+ge)/(1+B) correction. Report p against the
-majority-chance baseline, not 1/K.
-
-REFERENCES
-- Sakoe & Chiba (1978), DOI: 10.1109/TASSP.1978.1163055
-- Phipson & Smyth (2010), DOI: 10.2202/1544-6115.1585
-- Android Head Tracker HID: https://source.android.com/docs/core/interaction/sensors/head-tracker-hid-protocol
+4. REFERENCES
+- Sakoe & Chiba (1978), IEEE Trans. ASSP 26(1), 43-49, DOI: 10.1109/TASSP.1978.1163055
+- Phipson & Smyth (2010), Stat. Appl. Genet. Mol. Biol. 9(1), DOI: 10.2202/1544-6115.1585
+- Android Material Design 3 (scrolling layouts): https://developer.android.com/develop/ui/compose/layouts
+- Android internal storage (filesDir): https://developer.android.com/training/data-storage/app-specific#internal
+- GitHub Actions CI for Android: https://developer.android.com/studio/build/continuous-integration
+- adb uiautomator dump (resource-id): https://developer.android.com/tools/adb#uiautomator

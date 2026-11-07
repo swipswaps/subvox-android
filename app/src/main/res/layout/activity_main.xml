@@ -4,17 +4,36 @@
     <LinearLayout
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="vertical" android:padding="24dp" android:gravity="center_horizontal">
+
+        <TextView android:id="@+id/takeCountText"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="0 takes, 0 labels" android:textSize="14sp"
+            android:paddingBottom="8dp" android:fontFamily="monospace" />
+
         <EditText android:id="@+id/inputLabel" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:hint="Vocabulary token (e.g. hello)" />
+            android:layout_height="wrap_content" android:hint="Vocabulary token (e.g. hello)"
+            android:minHeight="48dp" android:inputType="text" />
+
         <Button android:id="@+id/recordButton" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="16dp"
-            android:text="Record Reference" />
+            android:minHeight="48dp" android:text="Record Reference" />
+
         <Button android:id="@+id/classifyButton" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="16dp"
-            android:text="Run Classification" />
+            android:minHeight="48dp" android:text="Run Classification" />
+
         <Button android:id="@+id/evaluateButton" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="16dp"
-            android:text="Evaluate (LOO + 500 permutations)" />
+            android:minHeight="48dp" android:text="Evaluate (LOO + 500 permutations)" />
+
+        <Button android:id="@+id/exportButton" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="16dp"
+            android:minHeight="48dp" android:text="Export Dataset (JSON)" />
+
+        <Button android:id="@+id/clearButton" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="16dp"
+            android:minHeight="48dp" android:text="Clear Dataset" />
+
         <TextView android:id="@+id/statusText" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="24dp"
             android:text="Ready" android:textSize="14sp" android:fontFamily="monospace" />

@@ -14,6 +14,9 @@ compatible Bluetooth headsets (Sony WH/WF-1000XM5, XM6, ULT WEAR).</p>
 cd subvox-android
 ./gradlew --no-daemon assembleDebug</code></pre>
 <p>APK: <code>app/build/outputs/apk/debug/app-debug.apk</code></p>
+<h2>Automation</h2>
+<pre><code>python3 scripts/automate_recording.py</code></pre>
+<p>Uses ADB resource-ids to drive the UI; writes screenshots and an audit to <code>dist/audit/</code>.</p>
 <h2>References</h2>
 <ul>
 <li>Sakoe &amp; Chiba (1978), DOI: 10.1109/TASSP.1978.1163055</li>
