@@ -1,4 +1,5 @@
 package com.example.subvox
+
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -23,6 +24,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
+// Must match the android:authorities of the FileProvider in AndroidManifest.xml.
+const val APP_ID = "com.example.subvox"
+
 class MainActivity : AppCompatActivity() {
     private lateinit var c: MotionStreamCollector
     private lateinit var r: DatasetRepository
@@ -38,7 +42,8 @@ class MainActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= 31 &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
             != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.BLUETOOTH_CONNECT), 101)
+            ActivityCompat.requestPermissions(this,
+                arrayOf(Manifest.permission.BLUETOOTH_CONNECT), 101)
         }
 
         val st  = findViewById<TextView>(R.id.statusText)
@@ -65,8 +70,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         rec.setOnClickListener {
-            if (!cap) { buf.clear(); cap = true; rec.text = "Stop & Save"; st.text = "Recording..." }
-            else {
+            if (!cap) {
+                buf.clear(); cap = true
+                rec.text = "Stop & Save"; st.text = "Recording..."
+            } else {
                 cap = false; rec.text = "Record Reference"
                 val l = inp.text.toString().ifEmpty { "unnamed" }
                 val n = clf.normalize(buf)
@@ -79,15 +86,19 @@ class MainActivity : AppCompatActivity() {
         }
 
         dec.setOnClickListener {
-            if (!cap) { buf.clear(); cap = true; dec.text = "Stop & Classify"; st.text = "Listening..." }
-            else {
+            if (!cap) {
+                buf.clear(); cap = true
+                dec.text = "Stop & Classify"; st.text = "Listening..."
+            } else {
                 cap = false; dec.text = "Run Classification"
                 val ts = r.loadTemplates()
                 if (ts.isEmpty()) st.text = "No templates recorded."
                 else {
                     val res = clf.classify(buf, ts)
-                    st.text = if (res.accepted) "-> ${res.label} d=%.2f".format(res.distance)
-                             else "rejected best=${res.label} d=%.2f".format(res.distance)
+                    st.text = if (res.accepted)
+                        "-> ${res.label} d=%.2f".format(res.distance)
+                    else
+                        "rejected best=${res.label} d=%.2f".format(res.distance)
                 }
             }
         }
@@ -95,7 +106,9 @@ class MainActivity : AppCompatActivity() {
         eva.setOnClickListener {
             val ts = r.loadTemplates()
             if (ts.size < 4) { st.text = "Need >= 4 takes."; return@setOnClickListener }
-            if (ts.map { it.label }.distinct().size < 2) { st.text = "Need >= 2 distinct labels."; return@setOnClickListener }
+            if (ts.map { it.label }.distinct().size < 2) {
+                st.text = "Need >= 2 distinct labels."; return@setOnClickListener
+            }
             st.text = "Evaluating LOO + ${Evaluation.DEFAULT_PERMUTATIONS} permutations..."
             lifecycleScope.launch(Dispatchers.Default) {
                 val res = Evaluation.run(ts)
@@ -106,15 +119,17 @@ class MainActivity : AppCompatActivity() {
         exp.setOnClickListener {
             try {
                 val f = File(cacheDir, "subvox_dataset.json")
-                f.writeText(kotlinx.serialization.json.Json.encodeToString(r.loadTemplates()))
-                val uri = FileProvider.getUriForFile(this, "$PKG.fileprovider", f)
+                f.writeText(r.exportJson())
+                val uri = FileProvider.getUriForFile(this, "$APP_ID.fileprovider", f)
                 val i = Intent(Intent.ACTION_SEND).apply {
                     type = "application/json"
                     putExtra(Intent.EXTRA_STREAM, uri)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
                 startActivity(Intent.createChooser(i, "Export Subvox dataset"))
-            } catch (e: Exception) { st.text = "Export failed: ${e.message}" }
+            } catch (e: Exception) {
+                st.text = "Export failed: ${e.message}"
+            }
         }
 
         clr.setOnClickListener {

@@ -15,10 +15,12 @@ class DatasetRepository(ctx: Context) {
     fun saveTemplates(t: List<TemplateRecord>) = f.writeText(j.encodeToString(t))
     fun loadTemplates(): List<TemplateRecord> =
         if (!f.exists()) emptyList()
-        else runCatching { j.decodeFromString<List<TemplateRecord>>(f.readText()) }.getOrDefault(emptyList())
+        else runCatching { j.decodeFromString<List<TemplateRecord>>(f.readText()) }
+            .getOrDefault(emptyList())
     fun clearTemplates() { if (f.exists()) f.delete() }
     fun count(): Pair<Int, Int> {
         val t = loadTemplates()
         return Pair(t.size, t.map { it.label }.distinct().size)
     }
+    fun exportJson(): String = j.encodeToString(loadTemplates())
 }
