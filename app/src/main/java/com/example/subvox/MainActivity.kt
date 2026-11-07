@@ -8,8 +8,11 @@ import android.os.Bundle
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.core.*
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -22,17 +25,14 @@ import com.example.subvox.ml.Evaluation
 import com.example.subvox.ml.TemplateClassifier
 import com.example.subvox.sensor.MotionStreamCollector
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.color.MaterialColors
 import com.google.android.material.progressindicator.CircularProgressIndicator
 import com.google.android.material.textfield.TextInputEditText
 import com.google.mediapipe.framework.image.BitmapImageBuilder
-import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.core.Delegate
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult
-import androidx.camera.view.PreviewView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -54,6 +54,8 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var previewView: PreviewView
     private lateinit var lipOverlay: LipOverlayView
+    private lateinit var camHint: TextView
+    private lateinit var statusText: TextView
     private var faceLandmarker: FaceLandmarker? = null
     private val cameraExecutor = Executors.newSingleThreadExecutor()
     private var cameraProvider: ProcessCameraProvider? = null
@@ -62,9 +64,11 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
         setContentView(R.layout.activity_main)
-        c = MotionStreamCollector(this); r = DatasetRepository(this); at = AudioTranscriber(this)
+        c = MotionStreamCollector(this)
+        r = DatasetRepository(this)
+        at = AudioTranscriber(this)
 
-        val st   = findViewById<TextView>(R.id.statusText)
+        statusText = findViewById(R.id.statusText)
         val cnt  = findViewById<TextView>(R.id.takeCountText)
         val inp  = findViewById<TextInputEditText>(R.id.inputLabel)
         val rec  = findViewById<MaterialButton>(R.id.recordButton)
@@ -75,22 +79,21 @@ class MainActivity : AppCompatActivity() {
         val clr  = findViewById<MaterialButton>(R.id.clearButton)
         val prog = findViewById<CircularProgressIndicator>(R.id.evalProgress)
         val camBtn = findViewById<MaterialButton>(R.id.cameraToggleButton)
-        val camHint = findViewById<TextView>(R.id.cameraHintText)
         previewView = findViewById(R.id.cameraPreview)
         lipOverlay = findViewById(R.id.lipOverlay)
+        camHint = findViewById(R.id.cameraHintText)
 
         fun refreshCount() {
             val (takes, labels) = r.count()
-            val msg = when {
+            cnt.text = when {
                 takes == 0 -> "No takes yet."
                 takes < 4 || labels < 2 -> "$takes takes, $labels labels. Need >= 4 takes and >= 2 labels."
                 else -> "$takes takes, $labels labels"
             }
-            cnt.text = msg
         }
         refreshCount()
 
-        st.text = if (c.hasHeadTracker) "Head tracker HID active" else "Phone IMU"
+        statusText.text = if (c.hasHeadTracker) "Head tracker HID active" else "Phone IMU"
 
         lifecycleScope.launch {
             c.motionFlow.collect { f ->
@@ -101,83 +104,91 @@ class MainActivity : AppCompatActivity() {
         val baseOptions = BaseOptions.builder()
             .setModelAssetPath("face_landmarker.task")
             .setDelegate(Delegate.CPU).build()
+
         val options = FaceLandmarker.FaceLandmarkerOptions.builder()
             .setBaseOptions(baseOptions)
             .setRunningMode(RunningMode.LIVE_STREAM)
             .setNumFaces(1)
-            .setResultListener { result: FaceLandmarkerResult, _: MPImage ->
+            .setResultListener { result: FaceLandmarkerResult, _: com.google.mediapipe.framework.image.MPImage ->
                 val face = result.faceLandmarks().firstOrNull()
                 runOnUiThread {
                     if (face != null) {
                         lipOverlay.landmarks = face
-                        camHint.text = "Face detected! Mouth a word."
-                        camHint.setTextColor(0xFF00FF00.toInt()) // Green
-                        st.text = "Camera active. Face detected."
+                        camHint.text = "Face detected. Mouth a word."
+                        camHint.setTextColor(0xFF00FF00.toInt())
+                        statusText.text = "Camera active. Face detected."
                     } else {
                         lipOverlay.landmarks = null
                         camHint.text = "Center your face in the frame"
-                        camHint.setTextColor(0xFFFFFFFF.toInt()) // White
-                        st.text = "Camera active. Looking for face..."
+                        camHint.setTextColor(0xFFFFFFFF.toInt())
+                        statusText.text = "Camera active. Looking for face..."
                     }
                 }
             }
             .setErrorListener { e ->
-                runOnUiThread { st.text = "MediaPipe error: ${e.message}" }
+                runOnUiThread { statusText.text = "MediaPipe error: " + (e.message ?: "") }
             }
             .build()
 
         try {
             faceLandmarker = FaceLandmarker.createFromOptions(this, options)
         } catch (e: Exception) {
-            st.text = "FaceLandmarker init failed: ${e.message}"
+            statusText.text = "FaceLandmarker init failed: " + (e.message ?: "")
         }
 
         camBtn.setOnClickListener {
             if (!isCameraOn) {
-                if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), REQ_CAMERA)
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                    != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(this,
+                        arrayOf(Manifest.permission.CAMERA), REQ_CAMERA)
                 } else {
-                    startCamera(st)
+                    startCamera()
                 }
             } else {
-                stopCamera(st)
+                stopCamera()
             }
         }
 
         rec.setOnClickListener {
             if (!cap) {
                 buf.clear(); cap = true
-                rec.text = "Stop & Save"; st.text = "Recording..."
+                rec.text = "Stop & Save"
+                statusText.text = "Recording..."
             } else {
-                cap = false; rec.text = "Record Reference"
+                cap = false
+                rec.text = "Record Reference"
                 val l = inp.text?.toString()?.ifEmpty { "unnamed" } ?: "unnamed"
                 val n = clf.normalize(buf)
                 val all = r.loadTemplates().toMutableList()
                 all.add(TemplateRecord(l, n.map { it.toList() }))
                 r.saveTemplates(all)
-                st.text = "Saved ${n.size} frames for '$l'"
+                statusText.text = "Saved " + n.size + " frames for " + l
                 refreshCount()
             }
         }
 
         trn.setOnClickListener {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQ_AUDIO)
-                st.text = "Grant microphone permission, then tap Transcribe again."
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this,
+                    arrayOf(Manifest.permission.RECORD_AUDIO), REQ_AUDIO)
+                statusText.text = "Grant microphone permission, then tap Transcribe again."
                 return@setOnClickListener
             }
-            st.text = "Loading Vosk model..."
+            statusText.text = "Loading Vosk model..."
             lifecycleScope.launch {
                 if (!at.ensureModel()) {
-                    st.text = "Vosk model not installed."
+                    statusText.text = "Vosk model not installed."
                     return@launch
                 }
-                st.text = "Listening (3s)..."
+                statusText.text = "Listening (3s)..."
                 val text = at.transcribe3s().trim()
-                if (text.isEmpty()) st.text = "No speech detected."
-                else {
+                if (text.isEmpty()) {
+                    statusText.text = "No speech detected."
+                } else {
                     inp.setText(text)
-                    st.text = "Transcribed: $text (edit if wrong, then Record)"
+                    statusText.text = "Transcribed: " + text
                 }
             }
         }
@@ -185,15 +196,20 @@ class MainActivity : AppCompatActivity() {
         dec.setOnClickListener {
             if (!cap) {
                 buf.clear(); cap = true
-                dec.text = "Stop & Classify"; st.text = "Listening..."
+                dec.text = "Stop & Classify"
+                statusText.text = "Listening..."
             } else {
-                cap = false; dec.text = "Run Classification"
+                cap = false
+                dec.text = "Run Classification"
                 val ts = r.loadTemplates()
-                if (ts.isEmpty()) st.text = "No templates recorded."
-                else {
+                if (ts.isEmpty()) {
+                    statusText.text = "No templates recorded."
+                } else {
                     val res = clf.classify(buf, ts)
-                    st.text = if (res.accepted) "-> ${res.label} d=%.2f".format(res.distance)
-                             else "Rejected: d=%.2f exceeds threshold.".format(res.distance)
+                    statusText.text = if (res.accepted)
+                        "-> " + res.label + " d=" + "%.2f".format(res.distance)
+                    else
+                        "Rejected: d=" + "%.2f".format(res.distance)
                 }
             }
         }
@@ -201,15 +217,16 @@ class MainActivity : AppCompatActivity() {
         eva.setOnClickListener {
             val ts = r.loadTemplates()
             if (ts.size < 4 || ts.map { it.label }.distinct().size < 2) {
-                st.text = "Need >= 4 takes and >= 2 labels."; return@setOnClickListener
+                statusText.text = "Need >= 4 takes and >= 2 labels."
+                return@setOnClickListener
             }
-            st.text = "Evaluating LOO + ${Evaluation.DEFAULT_PERMUTATIONS} permutations..."
+            statusText.text = "Evaluating LOO + " + Evaluation.DEFAULT_PERMUTATIONS + " permutations..."
             prog.visibility = View.VISIBLE
             lifecycleScope.launch(Dispatchers.Default) {
                 val res = Evaluation.run(ts)
                 withContext(Dispatchers.Main) {
                     prog.visibility = View.GONE
-                    st.text = res.pretty()
+                    statusText.text = res.pretty()
                 }
             }
         }
@@ -218,24 +235,26 @@ class MainActivity : AppCompatActivity() {
             try {
                 val f = File(cacheDir, "subvox_dataset.json")
                 f.writeText(r.exportJson())
-                val uri = FileProvider.getUriForFile(this, "$APP_ID.fileprovider", f)
+                val uri = FileProvider.getUriForFile(this, APP_ID + ".fileprovider", f)
                 val i = Intent(Intent.ACTION_SEND).apply {
                     type = "application/json"
                     putExtra(Intent.EXTRA_STREAM, uri)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
                 startActivity(Intent.createChooser(i, "Export Subvox dataset"))
-            } catch (e: Exception) { st.text = "Export failed: ${e.message}" }
+            } catch (e: Exception) {
+                statusText.text = "Export failed: " + (e.message ?: "")
+            }
         }
 
         clr.setOnClickListener {
             r.clearTemplates()
             refreshCount()
-            st.text = "Dataset cleared."
+            statusText.text = "Dataset cleared."
         }
     }
 
-    private fun startCamera(st: TextView) {
+    private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
         cameraProviderFuture.addListener({
             try {
@@ -254,7 +273,7 @@ class MainActivity : AppCompatActivity() {
                             faceLandmarker?.detectAsync(mpImage, System.currentTimeMillis())
                         }
                     } catch (e: Exception) {
-                        runOnUiThread { st.text = "Analyzer error: ${e.message}" }
+                        runOnUiThread { statusText.text = "Analyzer error: " + (e.message ?: "") }
                     } finally {
                         imageProxy.close()
                     }
@@ -263,26 +282,28 @@ class MainActivity : AppCompatActivity() {
                 cameraProvider?.unbindAll()
                 cameraProvider?.bindToLifecycle(this, cameraSelector, preview, analysis)
                 previewView.visibility = View.VISIBLE
-                isCameraOn = true
                 camHint.text = "Looking for face..."
-                st.text = "Camera active. Looking for face..."
+                camHint.setTextColor(0xFFFFFFFF.toInt())
+                isCameraOn = true
+                statusText.text = "Camera active. Looking for face..."
             } catch (e: Exception) {
-                st.text = "Camera start failed: ${e.message}"
+                statusText.text = "Camera start failed: " + (e.message ?: "")
             }
         }, ContextCompat.getMainExecutor(this))
     }
 
-    private fun stopCamera(st: TextView) {
+    private fun stopCamera() {
         cameraProvider?.unbindAll()
         previewView.visibility = View.GONE
         lipOverlay.landmarks = null
-        isCameraOn = false
         camHint.text = "Tap 'Start Camera' to begin"
-        st.text = "Camera stopped."
+        camHint.setTextColor(0xFFFFFFFF.toInt())
+        isCameraOn = false
+        statusText.text = "Camera stopped."
     }
 
     override fun onResume() { super.onResume(); c.startListening() }
-    override fun onPause() { super.onPause(); c.stopListening() }
+    override fun onPause()  { super.onPause(); c.stopListening() }
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
