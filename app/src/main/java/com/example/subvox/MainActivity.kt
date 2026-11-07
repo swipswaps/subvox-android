@@ -258,15 +258,21 @@ class MainActivity : AppCompatActivity() {
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .build()
                 analysis.setAnalyzer(cameraExecutor) { imageProxy ->
-                    val mediaImage = imageProxy.image
-                    if (mediaImage != null && faceLandmarker != null) {
-                        val matrix = Matrix().apply { postRotate(imageProxy.imageInfo.rotationDegrees.toFloat()) }
-                        val bitmap = Bitmap.createBitmap(mediaImage.width, mediaImage.height, Bitmap.Config.ARGB_8888)
-                        // Convert ImageProxy to Bitmap (simplified for brevity; normally use ImageProxy.toBitmap() in newer CameraX)
-                        val mpImage = BitmapImageBuilder(bitmap).build()
-                        faceLandmarker?.detectAsync(mpImage, imageProxy.imageInfo.timestamp / 1000)
+                    try {
+                        if (faceLandmarker != null) {
+                            // ImageProxy.toBitmap() requires CameraX 1.3.0+.
+                            // For a rotation-corrected bitmap, pass rotationDegrees
+                            // through detectAsync's MS timestamp and let MediaPipe
+                            // handle orientation via its own EXIF parsing.
+                            val bitmap = imageProxy.toBitmap()
+                            val mpImage = BitmapImageBuilder(bitmap).build()
+                            faceLandmarker?.detectAsync(mpImage, System.currentTimeMillis())
+                        }
+                    } catch (e: Exception) {
+                        runOnUiThread { st.text = "Analyzer error: ${e.message}" }
+                    } finally {
+                        imageProxy.close()
                     }
-                    imageProxy.close()
                 }
                 val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
                 cameraProvider?.unbindAll()
