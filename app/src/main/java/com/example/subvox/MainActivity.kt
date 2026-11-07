@@ -3,8 +3,6 @@ package com.example.subvox
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.Matrix
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -17,6 +15,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import com.example.subvox.audio.AudioTranscriber
+import com.example.subvox.camera.LipOverlayView
 import com.example.subvox.data.DatasetRepository
 import com.example.subvox.data.TemplateRecord
 import com.example.subvox.ml.Evaluation
@@ -53,8 +52,8 @@ class MainActivity : AppCompatActivity() {
     private val buf = mutableListOf<FloatArray>()
     private var cap = false
 
-    // Camera & Lip Reading
     private lateinit var previewView: PreviewView
+    private lateinit var lipOverlay: LipOverlayView
     private var faceLandmarker: FaceLandmarker? = null
     private val cameraExecutor = Executors.newSingleThreadExecutor()
     private var cameraProvider: ProcessCameraProvider? = null
@@ -63,9 +62,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
         setContentView(R.layout.activity_main)
-        c = MotionStreamCollector(this)
-        r = DatasetRepository(this)
-        at = AudioTranscriber(this)
+        c = MotionStreamCollector(this); r = DatasetRepository(this); at = AudioTranscriber(this)
 
         val st   = findViewById<TextView>(R.id.statusText)
         val cnt  = findViewById<TextView>(R.id.takeCountText)
@@ -79,11 +76,12 @@ class MainActivity : AppCompatActivity() {
         val prog = findViewById<CircularProgressIndicator>(R.id.evalProgress)
         val camBtn = findViewById<MaterialButton>(R.id.cameraToggleButton)
         previewView = findViewById(R.id.cameraPreview)
+        lipOverlay = findViewById(R.id.lipOverlay)
 
         fun refreshCount() {
             val (takes, labels) = r.count()
             val msg = when {
-                takes == 0 -> "No takes yet. Type a word and tap Record Reference."
+                takes == 0 -> "No takes yet."
                 takes < 4 || labels < 2 -> "$takes takes, $labels labels. Need >= 4 takes and >= 2 labels."
                 else -> "$takes takes, $labels labels"
             }
@@ -99,26 +97,20 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // --- CAMERA SETUP ---
         val baseOptions = BaseOptions.builder()
             .setModelAssetPath("face_landmarker.task")
-            .setDelegate(Delegate.CPU)
-            .build()
+            .setDelegate(Delegate.CPU).build()
         val options = FaceLandmarker.FaceLandmarkerOptions.builder()
             .setBaseOptions(baseOptions)
             .setRunningMode(RunningMode.LIVE_STREAM)
             .setNumFaces(1)
             .setResultListener { result: FaceLandmarkerResult, _: MPImage ->
-                val hasFace = result.faceLandmarks().isNotEmpty()
+                val face = result.faceLandmarks().firstOrNull()
                 runOnUiThread {
-                    if (hasFace) {
-                        val landmarks = result.faceLandmarks()[0]
-                        // Indices 61-81 and 291-311 are the lips
-                        val lipStr = landmarks.drop(61).take(21).joinToString(",") {
-                            "%.2f,%.2f".format(it.x(), it.y())
-                        }
-                        // Just log for now; real fusion comes later
-                        // st.text = "Lip: ${lipStr.take(20)}..."
+                    if (face != null) {
+                        lipOverlay.landmarks = face
+                    } else {
+                        lipOverlay.landmarks = null
                     }
                 }
             }
@@ -129,8 +121,6 @@ class MainActivity : AppCompatActivity() {
 
         try {
             faceLandmarker = FaceLandmarker.createFromOptions(this, options)
-            // Copy model from assets to cache if needed (or use AssetManager directly if packaged)
-            // For this to work, we copy the .task file into app/src/main/assets/ during the build
         } catch (e: Exception) {
             st.text = "FaceLandmarker init failed: ${e.message}"
         }
@@ -147,7 +137,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // --- BUTTONS ---
         rec.setOnClickListener {
             if (!cap) {
                 buf.clear(); cap = true
@@ -173,14 +162,13 @@ class MainActivity : AppCompatActivity() {
             st.text = "Loading Vosk model..."
             lifecycleScope.launch {
                 if (!at.ensureModel()) {
-                    st.text = "Vosk model not installed. Push vosk-model-small-en-us-0.15 to files/."
+                    st.text = "Vosk model not installed."
                     return@launch
                 }
                 st.text = "Listening (3s)..."
                 val text = at.transcribe3s().trim()
-                if (text.isEmpty()) {
-                    st.text = "No speech detected."
-                } else {
+                if (text.isEmpty()) st.text = "No speech detected."
+                else {
                     inp.setText(text)
                     st.text = "Transcribed: $text (edit if wrong, then Record)"
                 }
@@ -194,15 +182,11 @@ class MainActivity : AppCompatActivity() {
             } else {
                 cap = false; dec.text = "Run Classification"
                 val ts = r.loadTemplates()
-                if (ts.isEmpty()) {
-                    st.text = "No templates recorded."
-                } else {
+                if (ts.isEmpty()) st.text = "No templates recorded."
+                else {
                     val res = clf.classify(buf, ts)
-                    if (res.accepted) {
-                        st.text = "-> ${res.label} d=%.2f".format(res.distance)
-                    } else {
-                        st.text = "Rejected: d=%.2f exceeds threshold.".format(res.distance)
-                    }
+                    st.text = if (res.accepted) "-> ${res.label} d=%.2f".format(res.distance)
+                             else "Rejected: d=%.2f exceeds threshold.".format(res.distance)
                 }
             }
         }
@@ -234,9 +218,7 @@ class MainActivity : AppCompatActivity() {
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
                 startActivity(Intent.createChooser(i, "Export Subvox dataset"))
-            } catch (e: Exception) {
-                st.text = "Export failed: ${e.message}"
-            }
+            } catch (e: Exception) { st.text = "Export failed: ${e.message}" }
         }
 
         clr.setOnClickListener {
@@ -260,10 +242,6 @@ class MainActivity : AppCompatActivity() {
                 analysis.setAnalyzer(cameraExecutor) { imageProxy ->
                     try {
                         if (faceLandmarker != null) {
-                            // ImageProxy.toBitmap() requires CameraX 1.3.0+.
-                            // For a rotation-corrected bitmap, pass rotationDegrees
-                            // through detectAsync's MS timestamp and let MediaPipe
-                            // handle orientation via its own EXIF parsing.
                             val bitmap = imageProxy.toBitmap()
                             val mpImage = BitmapImageBuilder(bitmap).build()
                             faceLandmarker?.detectAsync(mpImage, System.currentTimeMillis())
@@ -289,6 +267,7 @@ class MainActivity : AppCompatActivity() {
     private fun stopCamera(st: TextView) {
         cameraProvider?.unbindAll()
         previewView.visibility = View.GONE
+        lipOverlay.landmarks = null
         isCameraOn = false
         st.text = "Camera stopped."
     }

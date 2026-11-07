@@ -1,115 +1,100 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_width="match_parent" android:layout_height="match_parent"
     android:fillViewport="true">
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="24dp">
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="16dp">
 
         <TextView android:id="@+id/takeCountText"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:textAppearance="?attr/textAppearanceLabelLarge"
-            android:text="No takes yet. Type a word and tap Record Reference."
-            android:paddingBottom="16dp" />
+            android:text="No takes yet." android:paddingBottom="8dp" />
 
-        <com.google.android.material.textfield.TextInputLayout
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+        <!-- Camera Frame -->
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:hint="Vocabulary token (e.g. hello)">
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/inputLabel"
+            android:layout_height="240dp"
+            android:layout_marginBottom="16dp">
+            <androidx.camera.view.PreviewView
+                android:id="@+id/cameraPreview"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="text" />
-        </com.google.android.material.textfield.TextInputLayout>
-        <androidx.camera.view.PreviewView
-            android:id="@+id/cameraPreview"
-            android:layout_width="match_parent"
-            android:layout_height="200dp"
-            android:layout_marginTop="16dp"
-            android:visibility="gone" />
+                android:layout_height="match_parent"
+                android:visibility="gone" />
+            <com.example.subvox.camera.LipOverlayView
+                android:id="@+id/lipOverlay"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+        </FrameLayout>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/cameraToggleButton"
             style="@style/Widget.Material3.Button.TonalButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
             android:minHeight="48dp"
             android:text="Start Camera (Lip Reading)" />
 
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:hint="Vocabulary token (e.g. hello)">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/inputLabel"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:inputType="text" />
+        </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/recordButton"
             style="@style/Widget.Material3.Button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:minHeight="48dp"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" android:minHeight="48dp"
             android:text="Record Reference" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/transcribeButton"
-            style="@style/Widget.Material3.Button.TonalButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:minHeight="48dp"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:minHeight="48dp"
             android:text="Transcribe Audio (3s)" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/classifyButton"
             style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:minHeight="48dp"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:minHeight="48dp"
             android:text="Run Classification" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/evaluateButton"
             style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:minHeight="48dp"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:minHeight="48dp"
             android:text="Evaluate (LOO + 500 permutations)" />
 
         <com.google.android.material.progressindicator.CircularProgressIndicator
             android:id="@+id/evalProgress"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="16dp"
-            android:indeterminate="true"
-            android:visibility="gone" />
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal" android:layout_marginTop="8dp"
+            android:indeterminate="true" android:visibility="gone" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/exportButton"
             style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:minHeight="48dp"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:minHeight="48dp"
             android:text="Export Dataset (JSON)" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/clearButton"
             style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="48dp"
-            android:text="Clear Dataset" />
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:minHeight="48dp" android:text="Clear Dataset" />
 
         <TextView android:id="@+id/statusText"
             android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:layout_marginTop="16dp" android:textAppearance="?attr/textAppearanceBodyMedium"
             android:text="Ready" />
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>
