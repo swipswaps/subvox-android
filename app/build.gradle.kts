@@ -29,6 +29,13 @@ android {
     buildFeatures { viewBinding = true }
 }
 dependencies {
+    // CameraX for lip-reading
+    implementation("androidx.camera:camera-core:1.3.0")
+    implementation("androidx.camera:camera-camera2:1.3.0")
+    implementation("androidx.camera:camera-lifecycle:1.3.0")
+    implementation("androidx.camera:camera-view:1.3.0")
+    // MediaPipe for face landmarks
+    implementation("com.google.mediapipe:tasks-vision:0.10.9")
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
