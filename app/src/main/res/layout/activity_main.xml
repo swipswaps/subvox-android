@@ -38,6 +38,15 @@
             android:text="Record Reference" />
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/transcribeButton"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:minHeight="48dp"
+            android:text="Transcribe Audio (3s)" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/classifyButton"
             style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="match_parent"

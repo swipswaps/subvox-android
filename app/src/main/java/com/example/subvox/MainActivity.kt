@@ -29,6 +29,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 const val APP_ID = "com.example.subvox"
+private const val REQ_AUDIO = 200
 
 class MainActivity : AppCompatActivity() {
     private lateinit var c: MotionStreamCollector
@@ -41,39 +42,26 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
         setContentView(R.layout.activity_main)
-        c = MotionStreamCollector(this); r = DatasetRepository(this); at = AudioTranscriber(this)
+        c = MotionStreamCollector(this)
+        r = DatasetRepository(this)
+        at = AudioTranscriber(this)
 
         if (Build.VERSION.SDK_INT >= 31 &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
             != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.BLUETOOTH_CONNECT), 101)
+            ActivityCompat.requestPermissions(this,
+                arrayOf(Manifest.permission.BLUETOOTH_CONNECT), 101)
         }
 
-        val st  = findViewById<TextView>(R.id.statusText)
-        val cnt = findViewById<TextView>(R.id.takeCountText)
-        val inp = findViewById<TextInputEditText>(R.id.inputLabel)
-        val rec = findViewById<MaterialButton>(R.id.recordButton)
-        val dec = findViewById<MaterialButton>(R.id.classifyButton)
-        val eva = findViewById<MaterialButton>(R.id.evaluateButton)
-        val exp = val trn = com.google.android.material.button.MaterialButton(this).apply {
-            id = View.generateViewId()
-            text = "Transcribe Audio (3s)"
-            setOnClickListener {
-                lifecycleScope.launch {
-                    if (!at.ensureModel()) {
-                        st.text = "Vosk model not found. Push vosk-model-small-en-us-0.15 to /data/data/com.example.subvox/files/"
-                        return@launch
-                    }
-                    st.text = "Listening (3s)..."
-                    val text = at.transcribe3s()
-                    st.text = "Transcribed: ${text.trim()}"
-                }
-            }
-        }
-        val exportBtn = findViewById<MaterialButton>(R.id.exportButton)
-        (exportBtn.parent as android.widget.LinearLayout).addView(trn, exportBtn.parent.indexOfChild(exportBtn))
-        
-        val clr = findViewById<MaterialButton>(R.id.clearButton)
+        val st   = findViewById<TextView>(R.id.statusText)
+        val cnt  = findViewById<TextView>(R.id.takeCountText)
+        val inp  = findViewById<TextInputEditText>(R.id.inputLabel)
+        val rec  = findViewById<MaterialButton>(R.id.recordButton)
+        val trn  = findViewById<MaterialButton>(R.id.transcribeButton)
+        val dec  = findViewById<MaterialButton>(R.id.classifyButton)
+        val eva  = findViewById<MaterialButton>(R.id.evaluateButton)
+        val exp  = findViewById<MaterialButton>(R.id.exportButton)
+        val clr  = findViewById<MaterialButton>(R.id.clearButton)
         val prog = findViewById<CircularProgressIndicator>(R.id.evalProgress)
 
         fun refreshCount() {
@@ -101,13 +89,40 @@ class MainActivity : AppCompatActivity() {
                 rec.text = "Stop & Save"; st.text = "Recording..."
             } else {
                 cap = false; rec.text = "Record Reference"
-                val l = inp.text.toString().ifEmpty { "unnamed" }
+                val l = inp.text?.toString()?.ifEmpty { "unnamed" } ?: "unnamed"
                 val n = clf.normalize(buf)
                 val all = r.loadTemplates().toMutableList()
                 all.add(TemplateRecord(l, n.map { it.toList() }))
                 r.saveTemplates(all)
                 st.text = "Saved ${n.size} frames for '$l'"
                 refreshCount()
+            }
+        }
+
+        trn.setOnClickListener {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this,
+                    arrayOf(Manifest.permission.RECORD_AUDIO), REQ_AUDIO)
+                st.text = "Grant microphone permission, then tap Transcribe again."
+                return@setOnClickListener
+            }
+            st.text = "Loading Vosk model..."
+            lifecycleScope.launch {
+                if (!at.ensureModel()) {
+                    st.text = "Vosk model not installed. Push vosk-model-small-en-us-0.15 to files/."
+                    st.setTextColor(MaterialColors.getColor(st,
+                        com.google.android.material.R.attr.colorError))
+                    return@launch
+                }
+                st.text = "Listening (3s)..."
+                val text = at.transcribe3s().trim()
+                if (text.isEmpty()) {
+                    st.text = "No speech detected."
+                } else {
+                    inp.setText(text)
+                    st.text = "Transcribed: $text (edit if wrong, then Record)"
+                }
             }
         }
 
@@ -124,10 +139,12 @@ class MainActivity : AppCompatActivity() {
                     val res = clf.classify(buf, ts)
                     if (res.accepted) {
                         st.text = "-> ${res.label} d=%.2f".format(res.distance)
-                        st.setTextColor(MaterialColors.getColor(st, com.google.android.material.R.attr.colorOnSurface))
+                        st.setTextColor(MaterialColors.getColor(st,
+                            com.google.android.material.R.attr.colorOnSurface))
                     } else {
                         st.text = "Rejected: d=%.2f exceeds threshold.".format(res.distance)
-                        st.setTextColor(MaterialColors.getColor(st, com.google.android.material.R.attr.colorError))
+                        st.setTextColor(MaterialColors.getColor(st,
+                            com.google.android.material.R.attr.colorError))
                     }
                 }
             }
@@ -136,14 +153,19 @@ class MainActivity : AppCompatActivity() {
         eva.setOnClickListener {
             val ts = r.loadTemplates()
             if (ts.size < 4) {
-                st.text = "Need >= 4 takes."; st.setTextColor(MaterialColors.getColor(st, com.google.android.material.R.attr.colorError))
+                st.text = "Need >= 4 takes."
+                st.setTextColor(MaterialColors.getColor(st,
+                    com.google.android.material.R.attr.colorError))
                 return@setOnClickListener
             }
             if (ts.map { it.label }.distinct().size < 2) {
-                st.text = "Need >= 2 distinct labels."; st.setTextColor(MaterialColors.getColor(st, com.google.android.material.R.attr.colorError))
+                st.text = "Need >= 2 distinct labels."
+                st.setTextColor(MaterialColors.getColor(st,
+                    com.google.android.material.R.attr.colorError))
                 return@setOnClickListener
             }
-            st.setTextColor(MaterialColors.getColor(st, com.google.android.material.R.attr.colorOnSurface))
+            st.setTextColor(MaterialColors.getColor(st,
+                com.google.android.material.R.attr.colorOnSurface))
             st.text = "Evaluating LOO + ${Evaluation.DEFAULT_PERMUTATIONS} permutations..."
             prog.visibility = View.VISIBLE
             lifecycleScope.launch(Dispatchers.Default) {
@@ -168,7 +190,8 @@ class MainActivity : AppCompatActivity() {
                 startActivity(Intent.createChooser(i, "Export Subvox dataset"))
             } catch (e: Exception) {
                 st.text = "Export failed: ${e.message}"
-                st.setTextColor(MaterialColors.getColor(st, com.google.android.material.R.attr.colorError))
+                st.setTextColor(MaterialColors.getColor(st,
+                    com.google.android.material.R.attr.colorError))
             }
         }
 
@@ -178,6 +201,7 @@ class MainActivity : AppCompatActivity() {
             st.text = "Dataset cleared."
         }
     }
+
     override fun onResume() { super.onResume(); c.startListening() }
-    override fun onPause()  { super.onPause();  c.stopListening()  }
+    override fun onPause()  { super.onPause();  c.stopListening() }
 }
