@@ -12,6 +12,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
+import com.example.subvox.audio.AudioTranscriber
 import com.example.subvox.data.DatasetRepository
 import com.example.subvox.data.TemplateRecord
 import com.example.subvox.ml.Evaluation
@@ -32,6 +33,7 @@ const val APP_ID = "com.example.subvox"
 class MainActivity : AppCompatActivity() {
     private lateinit var c: MotionStreamCollector
     private lateinit var r: DatasetRepository
+    private lateinit var at: AudioTranscriber
     private val clf = TemplateClassifier()
     private val buf = mutableListOf<FloatArray>()
     private var cap = false
@@ -39,7 +41,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
         setContentView(R.layout.activity_main)
-        c = MotionStreamCollector(this); r = DatasetRepository(this)
+        c = MotionStreamCollector(this); r = DatasetRepository(this); at = AudioTranscriber(this)
 
         if (Build.VERSION.SDK_INT >= 31 &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
@@ -53,7 +55,24 @@ class MainActivity : AppCompatActivity() {
         val rec = findViewById<MaterialButton>(R.id.recordButton)
         val dec = findViewById<MaterialButton>(R.id.classifyButton)
         val eva = findViewById<MaterialButton>(R.id.evaluateButton)
-        val exp = findViewById<MaterialButton>(R.id.exportButton)
+        val exp = val trn = com.google.android.material.button.MaterialButton(this).apply {
+            id = View.generateViewId()
+            text = "Transcribe Audio (3s)"
+            setOnClickListener {
+                lifecycleScope.launch {
+                    if (!at.ensureModel()) {
+                        st.text = "Vosk model not found. Push vosk-model-small-en-us-0.15 to /data/data/com.example.subvox/files/"
+                        return@launch
+                    }
+                    st.text = "Listening (3s)..."
+                    val text = at.transcribe3s()
+                    st.text = "Transcribed: ${text.trim()}"
+                }
+            }
+        }
+        val exportBtn = findViewById<MaterialButton>(R.id.exportButton)
+        (exportBtn.parent as android.widget.LinearLayout).addView(trn, exportBtn.parent.indexOfChild(exportBtn))
+        
         val clr = findViewById<MaterialButton>(R.id.clearButton)
         val prog = findViewById<CircularProgressIndicator>(R.id.evalProgress)
 
