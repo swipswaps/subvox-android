@@ -3,14 +3,14 @@ package com.example.subvox
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.Preview
+import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
@@ -49,7 +49,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var r: DatasetRepository
     private lateinit var at: AudioTranscriber
     private val clf = TemplateClassifier()
+    
     private val buf = mutableListOf<FloatArray>()
+    private val lipBuf = mutableListOf<FloatArray>()
     private var cap = false
 
     private lateinit var previewView: PreviewView
@@ -101,10 +103,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        val baseOptions = BaseOptions.builder()
-            .setModelAssetPath("face_landmarker.task")
-            .setDelegate(Delegate.CPU).build()
-
+        val baseOptions = BaseOptions.builder().setModelAssetPath("face_landmarker.task").setDelegate(Delegate.CPU).build()
         val options = FaceLandmarker.FaceLandmarkerOptions.builder()
             .setBaseOptions(baseOptions)
             .setRunningMode(RunningMode.LIVE_STREAM)
@@ -116,100 +115,81 @@ class MainActivity : AppCompatActivity() {
                         lipOverlay.landmarks = face
                         camHint.text = "Face detected. Mouth a word."
                         camHint.setTextColor(0xFF00FF00.toInt())
-                        statusText.text = "Camera active. Face detected."
+                        if (cap) {
+                            val flat = FloatArray(40)
+                            for (i in 0 until 20) {
+                                flat[i*2] = face[61 + i].x()
+                                flat[i*2 + 1] = face[61 + i].y()
+                            }
+                            lipBuf.add(flat)
+                        }
                     } else {
                         lipOverlay.landmarks = null
                         camHint.text = "Center your face in the frame"
                         camHint.setTextColor(0xFFFFFFFF.toInt())
-                        statusText.text = "Camera active. Looking for face..."
                     }
                 }
             }
-            .setErrorListener { e ->
-                runOnUiThread { statusText.text = "MediaPipe error: " + (e.message ?: "") }
-            }
+            .setErrorListener { e -> runOnUiThread { statusText.text = "MediaPipe error: " + (e.message ?: "") } }
             .build()
 
-        try {
-            faceLandmarker = FaceLandmarker.createFromOptions(this, options)
-        } catch (e: Exception) {
-            statusText.text = "FaceLandmarker init failed: " + (e.message ?: "")
-        }
+        try { faceLandmarker = FaceLandmarker.createFromOptions(this, options) }
+        catch (e: Exception) { statusText.text = "FaceLandmarker init failed: " + (e.message ?: "") }
 
         camBtn.setOnClickListener {
             if (!isCameraOn) {
-                if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-                    != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(this,
-                        arrayOf(Manifest.permission.CAMERA), REQ_CAMERA)
-                } else {
-                    startCamera()
-                }
-            } else {
-                stopCamera()
-            }
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), REQ_CAMERA)
+                } else { startCamera() }
+            } else { stopCamera() }
         }
 
         rec.setOnClickListener {
             if (!cap) {
-                buf.clear(); cap = true
+                buf.clear(); lipBuf.clear(); cap = true
                 rec.text = "Stop & Save"
-                statusText.text = "Recording..."
+                statusText.text = "Recording IMU & Lips..."
             } else {
-                cap = false
-                rec.text = "Record Reference"
+                cap = false; rec.text = "Record Reference"
                 val l = inp.text?.toString()?.ifEmpty { "unnamed" } ?: "unnamed"
                 val n = clf.normalize(buf)
                 val all = r.loadTemplates().toMutableList()
-                all.add(TemplateRecord(l, n.map { it.toList() }))
+                all.add(TemplateRecord(l, n.map { it.toList() }, lipBuf.map { it.toList() }))
                 r.saveTemplates(all)
-                statusText.text = "Saved " + n.size + " frames for " + l
+                statusText.text = "Saved " + n.size + " frames. Lips: " + lipBuf.size
                 refreshCount()
             }
         }
 
         trn.setOnClickListener {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-                != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this,
-                    arrayOf(Manifest.permission.RECORD_AUDIO), REQ_AUDIO)
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQ_AUDIO)
                 statusText.text = "Grant microphone permission, then tap Transcribe again."
                 return@setOnClickListener
             }
             statusText.text = "Loading Vosk model..."
             lifecycleScope.launch {
-                if (!at.ensureModel()) {
-                    statusText.text = "Vosk model not installed."
-                    return@launch
-                }
+                if (!at.ensureModel()) { statusText.text = "Vosk model not installed."; return@launch }
                 statusText.text = "Listening (3s)..."
                 val text = at.transcribe3s().trim()
-                if (text.isEmpty()) {
-                    statusText.text = "No speech detected."
-                } else {
-                    inp.setText(text)
-                    statusText.text = "Transcribed: " + text
-                }
+                if (text.isEmpty()) statusText.text = "No speech detected."
+                else { inp.setText(text); statusText.text = "Transcribed: $text" }
             }
         }
 
         dec.setOnClickListener {
             if (!cap) {
-                buf.clear(); cap = true
+                buf.clear(); lipBuf.clear(); cap = true
                 dec.text = "Stop & Classify"
                 statusText.text = "Listening..."
             } else {
-                cap = false
-                dec.text = "Run Classification"
+                cap = false; dec.text = "Run Classification"
                 val ts = r.loadTemplates()
-                if (ts.isEmpty()) {
-                    statusText.text = "No templates recorded."
-                } else {
-                    val res = clf.classify(buf, ts)
-                    statusText.text = if (res.accepted)
-                        "-> " + res.label + " d=" + "%.2f".format(res.distance)
-                    else
-                        "Rejected: d=" + "%.2f".format(res.distance)
+                if (ts.isEmpty()) statusText.text = "No templates recorded."
+                else {
+                    val res = clf.classify(buf, lipBuf, ts)
+                    statusText.text = if (res.accepted) "-> " + res.label + " d=" + "%.2f".format(res.distance)
+                                      else "Rejected: d=" + "%.2f".format(res.distance)
                 }
             }
         }
@@ -217,17 +197,13 @@ class MainActivity : AppCompatActivity() {
         eva.setOnClickListener {
             val ts = r.loadTemplates()
             if (ts.size < 4 || ts.map { it.label }.distinct().size < 2) {
-                statusText.text = "Need >= 4 takes and >= 2 labels."
-                return@setOnClickListener
+                statusText.text = "Need >= 4 takes and >= 2 labels."; return@setOnClickListener
             }
             statusText.text = "Evaluating LOO + " + Evaluation.DEFAULT_PERMUTATIONS + " permutations..."
             prog.visibility = View.VISIBLE
             lifecycleScope.launch(Dispatchers.Default) {
                 val res = Evaluation.run(ts)
-                withContext(Dispatchers.Main) {
-                    prog.visibility = View.GONE
-                    statusText.text = res.pretty()
-                }
+                withContext(Dispatchers.Main) { prog.visibility = View.GONE; statusText.text = res.pretty() }
             }
         }
 
@@ -242,15 +218,11 @@ class MainActivity : AppCompatActivity() {
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
                 startActivity(Intent.createChooser(i, "Export Subvox dataset"))
-            } catch (e: Exception) {
-                statusText.text = "Export failed: " + (e.message ?: "")
-            }
+            } catch (e: Exception) { statusText.text = "Export failed: " + (e.message ?: "") }
         }
 
         clr.setOnClickListener {
-            r.clearTemplates()
-            refreshCount()
-            statusText.text = "Dataset cleared."
+            r.clearTemplates(); refreshCount(); statusText.text = "Dataset cleared."
         }
     }
 
@@ -259,17 +231,24 @@ class MainActivity : AppCompatActivity() {
         cameraProviderFuture.addListener({
             try {
                 cameraProvider = cameraProviderFuture.get()
-                val preview = Preview.Builder().build().also {
-                    it.setSurfaceProvider(previewView.surfaceProvider)
-                }
-                val analysis = ImageAnalysis.Builder()
-                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .build()
+                val preview = Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
+                val analysis = ImageAnalysis.Builder().setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build()
+                
                 analysis.setAnalyzer(cameraExecutor) { imageProxy ->
                     try {
                         if (faceLandmarker != null) {
+                            // 1. Convert to Bitmap
                             val bitmap = imageProxy.toBitmap()
-                            val mpImage = BitmapImageBuilder(bitmap).build()
+                            
+                            // 2. Apply Rotation & Mirroring for Front Camera
+                            // Ref: https://developer.android.com/reference/androidx/camera/core/ImageProxy
+                            val matrix = Matrix()
+                            matrix.postRotate(imageProxy.imageInfo.rotationDegrees.toFloat())
+                            matrix.postScale(-1f, 1f, bitmap.width / 2f, bitmap.height / 2f) // Mirror
+                            val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+                            
+                            // 3. Send to MediaPipe
+                            val mpImage = BitmapImageBuilder(rotated).build()
                             faceLandmarker?.detectAsync(mpImage, System.currentTimeMillis())
                         }
                     } catch (e: Exception) {
@@ -278,6 +257,7 @@ class MainActivity : AppCompatActivity() {
                         imageProxy.close()
                     }
                 }
+                
                 val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
                 cameraProvider?.unbindAll()
                 cameraProvider?.bindToLifecycle(this, cameraSelector, preview, analysis)
@@ -285,10 +265,8 @@ class MainActivity : AppCompatActivity() {
                 camHint.text = "Looking for face..."
                 camHint.setTextColor(0xFFFFFFFF.toInt())
                 isCameraOn = true
-                statusText.text = "Camera active. Looking for face..."
-            } catch (e: Exception) {
-                statusText.text = "Camera start failed: " + (e.message ?: "")
-            }
+                statusText.text = "Camera active."
+            } catch (e: Exception) { statusText.text = "Camera start failed: " + (e.message ?: "") }
         }, ContextCompat.getMainExecutor(this))
     }
 
@@ -297,7 +275,6 @@ class MainActivity : AppCompatActivity() {
         previewView.visibility = View.GONE
         lipOverlay.landmarks = null
         camHint.text = "Tap 'Start Camera' to begin"
-        camHint.setTextColor(0xFFFFFFFF.toInt())
         isCameraOn = false
         statusText.text = "Camera stopped."
     }
@@ -305,8 +282,6 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() { super.onResume(); c.startListening() }
     override fun onPause()  { super.onPause(); c.stopListening() }
     override fun onDestroy() {
-        super.onDestroy()
-        cameraExecutor.shutdown()
-        faceLandmarker?.close()
+        super.onDestroy(); cameraExecutor.shutdown(); faceLandmarker?.close()
     }
 }

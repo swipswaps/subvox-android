@@ -6,6 +6,14 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 android {
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("../debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
     namespace = "com.example.subvox"
     compileSdk = 34
     defaultConfig {
@@ -29,6 +37,7 @@ android {
     buildFeatures { viewBinding = true }
 }
 dependencies {
+    testImplementation("junit:junit:4.13.2")
     // CameraX for lip-reading
     implementation("androidx.camera:camera-core:1.3.0")
     implementation("androidx.camera:camera-camera2:1.3.0")

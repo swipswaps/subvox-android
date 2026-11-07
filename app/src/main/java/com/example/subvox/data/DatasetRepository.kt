@@ -8,7 +8,11 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
 @Serializable
-data class TemplateRecord(val label: String, val features: List<List<Float>>)
+data class TemplateRecord(
+    val label: String,
+    val features: List<List<Float>>,
+    val mouthFeatures: List<List<Float>> = emptyList() // Default to empty for old data
+)
 
 class DatasetRepository(ctx: Context) {
     private val f = File(ctx.filesDir, "subvox_dataset.json")
@@ -18,8 +22,7 @@ class DatasetRepository(ctx: Context) {
     fun saveTemplates(t: List<TemplateRecord>) {
         tmp.writeText(j.encodeToString(t))
         Files.move(tmp.toPath(), f.toPath(),
-            StandardCopyOption.REPLACE_EXISTING,
-            StandardCopyOption.ATOMIC_MOVE)
+            StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
     }
     fun loadTemplates(): List<TemplateRecord> =
         if (!f.exists()) emptyList()
