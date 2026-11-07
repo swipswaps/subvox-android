@@ -1,41 +1,90 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent">
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
     <LinearLayout
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="vertical" android:padding="24dp" android:gravity="center_horizontal">
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
 
         <TextView android:id="@+id/takeCountText"
             android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="0 takes, 0 labels" android:textSize="14sp"
-            android:paddingBottom="8dp" android:fontFamily="monospace" />
+            android:textAppearance="?attr/textAppearanceLabelLarge"
+            android:text="No takes yet. Type a word and tap Record Reference."
+            android:paddingBottom="16dp" />
 
-        <EditText android:id="@+id/inputLabel" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:hint="Vocabulary token (e.g. hello)"
-            android:minHeight="48dp" android:inputType="text" />
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="Vocabulary token (e.g. hello)">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/inputLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="text" />
+        </com.google.android.material.textfield.TextInputLayout>
 
-        <Button android:id="@+id/recordButton" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:layout_marginTop="16dp"
-            android:minHeight="48dp" android:text="Record Reference" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/recordButton"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:minHeight="48dp"
+            android:text="Record Reference" />
 
-        <Button android:id="@+id/classifyButton" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:layout_marginTop="16dp"
-            android:minHeight="48dp" android:text="Run Classification" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/classifyButton"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:minHeight="48dp"
+            android:text="Run Classification" />
 
-        <Button android:id="@+id/evaluateButton" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:layout_marginTop="16dp"
-            android:minHeight="48dp" android:text="Evaluate (LOO + 500 permutations)" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/evaluateButton"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:minHeight="48dp"
+            android:text="Evaluate (LOO + 500 permutations)" />
 
-        <Button android:id="@+id/exportButton" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:layout_marginTop="16dp"
-            android:minHeight="48dp" android:text="Export Dataset (JSON)" />
+        <com.google.android.material.progressindicator.CircularProgressIndicator
+            android:id="@+id/evalProgress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="16dp"
+            android:indeterminate="true"
+            android:visibility="gone" />
 
-        <Button android:id="@+id/clearButton" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:layout_marginTop="16dp"
-            android:minHeight="48dp" android:text="Clear Dataset" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/exportButton"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:minHeight="48dp"
+            android:text="Export Dataset (JSON)" />
 
-        <TextView android:id="@+id/statusText" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:layout_marginTop="24dp"
-            android:text="Ready" android:textSize="14sp" android:fontFamily="monospace" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/clearButton"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="Clear Dataset" />
+
+        <TextView android:id="@+id/statusText"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:text="Ready" />
     </LinearLayout>
-</ScrollView>
+</androidx.core.widget.NestedScrollView>

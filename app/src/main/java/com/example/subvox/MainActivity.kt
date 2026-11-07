@@ -5,8 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.widget.Button
-import android.widget.EditText
+import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -18,13 +17,16 @@ import com.example.subvox.data.TemplateRecord
 import com.example.subvox.ml.Evaluation
 import com.example.subvox.ml.TemplateClassifier
 import com.example.subvox.sensor.MotionStreamCollector
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.color.MaterialColors
+import com.google.android.material.progressindicator.CircularProgressIndicator
+import com.google.android.material.textfield.TextInputEditText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-// Must match the android:authorities of the FileProvider in AndroidManifest.xml.
 const val APP_ID = "com.example.subvox"
 
 class MainActivity : AppCompatActivity() {
@@ -42,22 +44,27 @@ class MainActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= 31 &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
             != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
-                arrayOf(Manifest.permission.BLUETOOTH_CONNECT), 101)
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.BLUETOOTH_CONNECT), 101)
         }
 
         val st  = findViewById<TextView>(R.id.statusText)
         val cnt = findViewById<TextView>(R.id.takeCountText)
-        val inp = findViewById<EditText>(R.id.inputLabel)
-        val rec = findViewById<Button>(R.id.recordButton)
-        val dec = findViewById<Button>(R.id.classifyButton)
-        val eva = findViewById<Button>(R.id.evaluateButton)
-        val exp = findViewById<Button>(R.id.exportButton)
-        val clr = findViewById<Button>(R.id.clearButton)
+        val inp = findViewById<TextInputEditText>(R.id.inputLabel)
+        val rec = findViewById<MaterialButton>(R.id.recordButton)
+        val dec = findViewById<MaterialButton>(R.id.classifyButton)
+        val eva = findViewById<MaterialButton>(R.id.evaluateButton)
+        val exp = findViewById<MaterialButton>(R.id.exportButton)
+        val clr = findViewById<MaterialButton>(R.id.clearButton)
+        val prog = findViewById<CircularProgressIndicator>(R.id.evalProgress)
 
         fun refreshCount() {
             val (takes, labels) = r.count()
-            cnt.text = "${takes} takes, ${labels} labels"
+            val msg = when {
+                takes == 0 -> "No takes yet. Type a word and tap Record Reference."
+                takes < 4 || labels < 2 -> "$takes takes, $labels labels. Need >= 4 takes and >= 2 labels."
+                else -> "$takes takes, $labels labels"
+            }
+            cnt.text = msg
         }
         refreshCount()
 
@@ -92,27 +99,40 @@ class MainActivity : AppCompatActivity() {
             } else {
                 cap = false; dec.text = "Run Classification"
                 val ts = r.loadTemplates()
-                if (ts.isEmpty()) st.text = "No templates recorded."
-                else {
+                if (ts.isEmpty()) {
+                    st.text = "No templates recorded."
+                } else {
                     val res = clf.classify(buf, ts)
-                    st.text = if (res.accepted)
-                        "-> ${res.label} d=%.2f".format(res.distance)
-                    else
-                        "rejected best=${res.label} d=%.2f".format(res.distance)
+                    if (res.accepted) {
+                        st.text = "-> ${res.label} d=%.2f".format(res.distance)
+                        st.setTextColor(MaterialColors.getColor(st, com.google.android.material.R.attr.colorOnSurface))
+                    } else {
+                        st.text = "Rejected: d=%.2f exceeds threshold.".format(res.distance)
+                        st.setTextColor(MaterialColors.getColor(st, com.google.android.material.R.attr.colorError))
+                    }
                 }
             }
         }
 
         eva.setOnClickListener {
             val ts = r.loadTemplates()
-            if (ts.size < 4) { st.text = "Need >= 4 takes."; return@setOnClickListener }
-            if (ts.map { it.label }.distinct().size < 2) {
-                st.text = "Need >= 2 distinct labels."; return@setOnClickListener
+            if (ts.size < 4) {
+                st.text = "Need >= 4 takes."; st.setTextColor(MaterialColors.getColor(st, com.google.android.material.R.attr.colorError))
+                return@setOnClickListener
             }
+            if (ts.map { it.label }.distinct().size < 2) {
+                st.text = "Need >= 2 distinct labels."; st.setTextColor(MaterialColors.getColor(st, com.google.android.material.R.attr.colorError))
+                return@setOnClickListener
+            }
+            st.setTextColor(MaterialColors.getColor(st, com.google.android.material.R.attr.colorOnSurface))
             st.text = "Evaluating LOO + ${Evaluation.DEFAULT_PERMUTATIONS} permutations..."
+            prog.visibility = View.VISIBLE
             lifecycleScope.launch(Dispatchers.Default) {
                 val res = Evaluation.run(ts)
-                withContext(Dispatchers.Main) { st.text = res.pretty() }
+                withContext(Dispatchers.Main) {
+                    prog.visibility = View.GONE
+                    st.text = res.pretty()
+                }
             }
         }
 
@@ -129,6 +149,7 @@ class MainActivity : AppCompatActivity() {
                 startActivity(Intent.createChooser(i, "Export Subvox dataset"))
             } catch (e: Exception) {
                 st.text = "Export failed: ${e.message}"
+                st.setTextColor(MaterialColors.getColor(st, com.google.android.material.R.attr.colorError))
             }
         }
 
