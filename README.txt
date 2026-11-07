@@ -33,6 +33,18 @@ Tap Evaluate (LOO + 500 permutations). Read p against majority chance.
 Automation: scripts/automate_recording.py drives the app via ADB and
 uiautomator resource-ids, records takes, and generates dist/audit/audit.md.
 
+Voice labels (optional): tap 'Transcribe Audio (3s)' to speak the label
+into the phone microphone. Vosk 0.3.47 (Apache-2.0) transcribes on-device
+and fills the text field. The classifier still uses only the IMU signal;
+audio is used solely to populate the ground-truth label.
+
+Model install (one-time):
+  wget https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip
+  unzip vosk-model-small-en-us-0.15.zip -d dist/
+  adb push dist/vosk-model-small-en-us-0.15 /data/local/tmp/
+  adb shell run-as com.example.subvox cp -r /data/local/tmp/vosk-model-small-en-us-0.15 files/
+  adb shell rm -rf /data/local/tmp/vosk-model-small-en-us-0.15
+
 4. REFERENCES
 - Sakoe & Chiba (1978), IEEE Trans. ASSP 26(1), 43-49, DOI: 10.1109/TASSP.1978.1163055
 - Phipson & Smyth (2010), Stat. Appl. Genet. Mol. Biol. 9(1), DOI: 10.2202/1544-6115.1585
