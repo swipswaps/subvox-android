@@ -75,6 +75,7 @@ class MainActivity : AppCompatActivity() {
         val clr  = findViewById<MaterialButton>(R.id.clearButton)
         val prog = findViewById<CircularProgressIndicator>(R.id.evalProgress)
         val camBtn = findViewById<MaterialButton>(R.id.cameraToggleButton)
+        val camHint = findViewById<TextView>(R.id.cameraHintText)
         previewView = findViewById(R.id.cameraPreview)
         lipOverlay = findViewById(R.id.lipOverlay)
 
@@ -109,8 +110,14 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     if (face != null) {
                         lipOverlay.landmarks = face
+                        camHint.text = "Face detected! Mouth a word."
+                        camHint.setTextColor(0xFF00FF00.toInt()) // Green
+                        st.text = "Camera active. Face detected."
                     } else {
                         lipOverlay.landmarks = null
+                        camHint.text = "Center your face in the frame"
+                        camHint.setTextColor(0xFFFFFFFF.toInt()) // White
+                        st.text = "Camera active. Looking for face..."
                     }
                 }
             }
@@ -257,7 +264,8 @@ class MainActivity : AppCompatActivity() {
                 cameraProvider?.bindToLifecycle(this, cameraSelector, preview, analysis)
                 previewView.visibility = View.VISIBLE
                 isCameraOn = true
-                st.text = "Camera active. Lip reading running."
+                camHint.text = "Looking for face..."
+                st.text = "Camera active. Looking for face..."
             } catch (e: Exception) {
                 st.text = "Camera start failed: ${e.message}"
             }
@@ -269,6 +277,7 @@ class MainActivity : AppCompatActivity() {
         previewView.visibility = View.GONE
         lipOverlay.landmarks = null
         isCameraOn = false
+        camHint.text = "Tap 'Start Camera' to begin"
         st.text = "Camera stopped."
     }
 

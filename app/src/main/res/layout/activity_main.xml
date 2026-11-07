@@ -15,7 +15,8 @@
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="240dp"
-            android:layout_marginBottom="16dp">
+            android:layout_marginBottom="16dp"
+            android:background="#000000">
             <androidx.camera.view.PreviewView
                 android:id="@+id/cameraPreview"
                 android:layout_width="match_parent"
@@ -25,6 +26,16 @@
                 android:id="@+id/lipOverlay"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent" />
+            <TextView
+                android:id="@+id/cameraHintText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:background="#80000000"
+                android:padding="8dp"
+                android:text="Tap 'Start Camera' to begin"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp" />
         </FrameLayout>
 
         <com.google.android.material.button.MaterialButton
