@@ -9,7 +9,12 @@
 /captures
 .externalNativeBuild
 .cxx
-/*.__quarantined__/
+
+# Local artifacts and downloaded models
 dist/
 *.apk
 *.aab
+*.tar
+*.zip
+vosk-model*
+face_landmarker.task
